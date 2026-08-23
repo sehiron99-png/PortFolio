@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<style>
+    /* 기본 설정 - CSS 변수 (02, 03페이지 완벽 통일) */
+    :root {
+      --bg-body: #f4f6fa;
+      --bg-app: #ffffff;
+      --border-app: #d3dbec;
+      --bg-sidebar: #cbd2e0; /* 기존 #d4dae8 에서 아주 살짝 더 진해진 톤 */
+      --color-sidebar-text: #1e293b;
+      --bg-menu-box: #5a67d8; /* 비비드 인디고 톤업 */
+      --color-menu-title: #ffffff;
+      --border-menu-title: #4c51bf;
+      --bg-sidebar-hover: #cbd5e6;
+      --color-text: #1e293b;
+      --color-text-muted: #64748b;
+      --border-person: #cbd5e6;
+      --border-person-selected: #64748b;
+      --bg-modal-content: #ffffff;
+      --bg-input: #ffffff;
+      --border-input: #cbd5e6;
+      --color-input: #1e293b;
+      --bg-card: #ffffff;
+      /* 핵심 액션 버튼용 비비드 인디고 (원복) */
+      --bg-btn-primary: #5a67d8;
+      --border-btn-primary: #4c51bf;
+      /* 로고 발광 효과 컬러 - 화이트 글로우 */
+      --logo-glow-color: rgba(255, 255, 255, 0.3);
+      --logo-glow-color-active: rgba(255, 255, 255, 0.85);
+    }
+
+    body.dark-mode {
+      /* 다크모드 웜톤 테마 */
+      --bg-body: #1c1917;
+      --bg-app: #1c1917;
+      --border-app: #44403c;
+      --bg-sidebar: #292524;
+      --color-sidebar-text: #d6d3d1;
+      --bg-menu-box: #78350f;
+      --color-menu-title: #fff7ed;
+      --border-menu-title: #451a03;
+      --bg-sidebar-hover: #44403c;
+      --color-text: #f5f5f4;
+      --color-text-muted: #a8a29e;
+      --border-person: #57534e;
+      --border-person-selected: #b45309;
+      --bg-modal-content: #292524;
+      --bg-input: #1c1917;
+      --border-input: #44403c;
+      --color-input: #f5f5f4;
+      --bg-card: #292524;
+      --bg-btn-primary: #9a3412;
+      --border-btn-primary: #9a3412;
+      /* 로고 발광 효과 컬러 - 화이트 글로우 */
+      --logo-glow-color: rgba(255, 255, 255, 0.25);
+      --logo-glow-color-active: rgba(255, 255, 255, 0.8);
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Pretendard', sans-serif;
+      background: var(--bg-body);
+      color: var(--color-text);
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+      align-items: stretch;
+      height: 100vh;
+      padding: 0;
+      box-sizing: border-box;
+      transition: background 0.3s, color 0.3s;
+      overflow: hidden;
+    }
+
+    .login-sidebar {
+      width: 220px;
+      background-color: var(--bg-sidebar);
+      color: var(--color-sidebar-text);
+      padding: 20px;
+      box-sizing: border-box;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+      z-index: 10;
+    }
+    body.dark-mode .login-sidebar {
+      border-right: 1px solid var(--border-app);
+      box-shadow: none;
+    }
+    .login-sidebar-title {
+      font-size: 1rem;
+      font-weight: bold;
+      color: var(--color-sidebar-text);
+      margin: 0;
+    }
+
+    .login-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background: var(--bg-body);
+      transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    body.page-exit .login-main {
+      opacity: 0;
+      transform: scale(0.95) translateY(-30px);
+    }
+
+    .logo-container {
+      margin-bottom: 30px;
+      transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+      transform-origin: center center;
+      display: inline-block;
+    }
+    .logo {
+      width: 220px;
+      height: auto;
+      display: block;
+      animation: logo-pulsate-glow 3s infinite ease-in-out;
+    }
+
+    /* 로고 효과 키프레임 */
+    @keyframes logo-pulsate-glow {
+      0%, 100% {
+        filter: drop-shadow(0 0 8px var(--logo-glow-color));
+      }
+      50% {
+        filter: drop-shadow(0 0 22px var(--logo-glow-color-active));
+      }
+    }
+    
+    .login-box {
+      background: var(--bg-card);
+      padding: 50px 40px;
+      width: 380px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+      text-align: center;
+      border: 1px solid var(--border-app);
+      transition: background 0.3s, border-color 0.3s, opacity 1s cubic-bezier(0.25, 1, 0.5, 1), transform 1s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    body.dark-mode .login-box {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    /* 인트로 애니메이션 관련 스타일 */
+    body.intro-active {
+      overflow: hidden;
+    }
+    body.intro-active .login-box,
+    body.intro-active .footer-area,
+    body.intro-active #themeToggleBtn {
+      opacity: 0;
+      transform: translateY(30px);
+      pointer-events: none;
+    }
+    body.intro-active .logo-container {
+      /* 기본적으로 화면 중앙 부근에 크게 위치하도록 설정 (FOUC 방지) */
+      transform: translate(var(--logo-dx, 0px), var(--logo-dy, 300px)) scale(3.2);
+      opacity: 0;
+      clip-path: inset(0 100% 0 0); /* 왼쪽에서 오른쪽으로 닦아내기 위해 오른쪽 영역 100% 클립 */
+      transition: none !important;
+    }
+    body.intro-active.intro-started .logo-container {
+      opacity: 1;
+      clip-path: inset(0 0% 0 0); /* 닦아내기 해제 (전체 노출) */
+      transition: opacity 0.8s ease-out, clip-path 0.8s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    }
+
+    h2 { margin-top: 0; margin-bottom: 30px; color: var(--color-text); font-size: 22px; }
+    .input-wrapper { margin: 15px 0; }
+    
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 16px 20px;
+      border: 2px solid var(--border-input);
+      border-radius: 12px;
+      background-color: var(--bg-input);
+      color: var(--color-input);
+      box-sizing: border-box;
+      font-size: 0.95rem;
+      transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+    }
+    input:focus {
+      background-color: var(--bg-app);
+      border-color: var(--border-btn-primary);
+      outline: none;
+    }
+
+    .option-bar { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; font-size: 13px; color: var(--color-text-muted); height: 20px; }
+    
+    /* 프라이머리 버튼 (비비드 인디고) */
+    button {
+      width: 100%;
+      padding: 16px;
+      margin-top: 10px;
+      background: var(--bg-btn-primary);
+      color: white;
+      border: 1px solid var(--border-btn-primary);
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: opacity 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .footer-area {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--color-text-muted);
+      line-height: 1.8;
+      transition: opacity 1s cubic-bezier(0.25, 1, 0.5, 1), transform 1s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .footer-area a { color: var(--color-text-muted); text-decoration: none; font-weight: bold; }
+    .footer-area a:hover { text-decoration: underline; }
+
+    /* 체크박스 스타일 */
+    input[type="checkbox"] { appearance: none; width: 18px; height: 18px; border: 2px solid var(--color-text-muted); border-radius: 4px; cursor: pointer; position: relative; margin-right: 8px; vertical-align: middle; background: var(--bg-input); }
+    input[type="checkbox"]:checked { background-color: var(--bg-btn-primary); border-color: var(--border-btn-primary); }
+    input[type="checkbox"]:checked::after { content: '✔'; color: white; font-size: 12px; position: absolute; left: 2px; top: -2px; }
+
+    /* 다크모드 테마 토글 버튼 스타일 */
+    .btn-theme {
+      background: var(--bg-search-tag);
+      color: var(--color-text);
+      border: 1px solid var(--border-person);
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      border-radius: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, opacity 1s cubic-bezier(0.25, 1, 0.5, 1), transform 1s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .btn-theme:hover {
+      background: var(--bg-sidebar-hover);
+      border-color: var(--border-person-hover);
+    }
+    body.dark-mode .btn-theme {
+      background: var(--bg-menu-box);
+      color: var(--color-menu-title);
+      border-color: var(--border-menu-title);
+    }
+
+    /* 모달 닫기 버튼 */
+    .btn-close-modal {
+      background: #e2e8f0 !important;
+      color: #4a5568 !important;
+      border: 1px solid #cbd5e0 !important;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .btn-close-modal:hover {
+      background: #cbd5e0 !important;
+    }
+    body.dark-mode .btn-close-modal {
+      background: #334155 !important;
+      color: #cbd5e0 !important;
+      border-color: #475569 !important;
+    }
+    body.dark-mode .btn-close-modal:hover {
+      background: #475569 !important;
+    }
+
+    /* 로딩 바 스타일 */
+    .intro-loader {
+      position: absolute;
+      top: calc(50% + 170px);
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 240px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+      z-index: 100;
+    }
+    body.intro-active .intro-loader {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .loader-bar-track {
+      width: 100%;
+      height: 6px;
+      background: var(--border-app);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .loader-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: #ff4f3d; /* 다홍색 */
+      border-radius: 3px;
+      box-shadow: 0 0 8px rgba(255, 79, 61, 0.6); /* 다홍색 네온 글로우 */
+      transition: width 0.1s linear;
+    }
+    .loader-text {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+</style>
+</head>
+<body class="intro-active">
+  <script>
+    if (localStorage.getItem("theme") === "dark") {
+      document.body.classList.add("dark-mode");
+    }
+  </script>
+    <!-- 사이드바 제거됨 -->
+
+    <div class="login-main">
+        <!-- 다크모드 토글 버튼 (02, 03페이지 헤더 구성과 완벽 싱크) -->
+        <div style="position: absolute; top: 20px; right: 20px;">
+            <button onclick="toggleTheme()" id="themeToggleBtn" class="btn-theme">다크 모드</button>
+        </div>
+
+        <div class="logo-container">
+            <img src="로고_01.png" alt="Logo" class="logo">
+        </div>
+
+        <!-- 로딩 바 추가 -->
+        <div class="intro-loader">
+            <div class="loader-bar-track">
+                <div class="loader-bar-fill"></div>
+            </div>
+            <div class="loader-text">연결 중... <span class="loader-pct">0%</span></div>
+        </div>
+
+        <div class="login-box">
+            <h2>관리자 로그인</h2>
+            <div class="input-wrapper">
+                <input type="text" id="id" placeholder="아이디 (소속)" onkeydown="if(event.key === 'Enter') document.getElementById('pw').focus()">
+            </div>
+            <div class="input-wrapper">
+                <input type="password" id="pw" placeholder="비밀번호" onkeydown="if(event.key === 'Enter') login()">
+            </div>
+            <div class="option-bar">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox"> 로그인 유지
+                </label>
+                <span onclick="openPwModal()" style="cursor:pointer; text-decoration: underline;">비밀번호 찾기</span>
+            </div>
+            <button onclick="login()">로그인</button>
+        </div>
+
+        <div id="pwModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:999;">
+            <div class="modal-content" style="padding:30px; border-radius:15px; width:300px; text-align:center; background:var(--bg-modal-content); color:var(--color-text); box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+                <h3 style="margin-top:0;">비밀번호 찾기</h3>
+                <input type="text" id="findId" placeholder="아이디(소속) 입력" style="width:100%; padding:10px; margin-bottom:15px; box-sizing:border-box; border:1px solid var(--border-input); border-radius:8px; background:var(--bg-input); color:var(--color-input);">
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="findPw()" class="btn-primary" style="flex:1; padding: 10px; margin-top: 0; font-size: 0.9rem;">확인</button>
+                    <button onclick="closePwModal()" class="btn-close-modal" style="flex:1; padding: 10px; margin-top: 0; font-size: 0.9rem;">닫기</button>
+                </div>
+                
+                <p id="pwResult" style="margin-top:15px; font-weight:bold; background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--border-input); min-height: 20px; display: none;"></p>
+            </div>
+        </div>
+
+        <div class="footer-area">
+            Copyright © 2026 CareLink. All rights reserved. | <a href="#" style="color: inherit; text-decoration: none;">이용약관</a> | <a href="#" style="color: inherit; text-decoration: none;">개인정보처리방침</a> | 고객센터: 055-123-4567
+        </div>
+    </div>
+
+<script>
+    // 테마 연동 함수
+    function initTheme() {
+      const savedTheme = localStorage.getItem("theme") || "light";
+      if (savedTheme === "dark") {
+        document.body.classList.add("dark-mode");
+        document.getElementById("themeToggleBtn").innerText = "라이트 모드";
+      } else {
+        document.body.classList.remove("dark-mode");
+        document.getElementById("themeToggleBtn").innerText = "다크 모드";
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.body.classList.toggle("dark-mode");
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+      document.getElementById("themeToggleBtn").innerText = isDark ? "라이트 모드" : "다크 모드";
+    }
+
+    function initIntroAnimation() {
+      const logoContainer = document.querySelector('.logo-container');
+      if (!logoContainer) return;
+
+      // 정확한 기본 레이아웃 좌표 측정을 위해 일시적으로 intro-active 클래스 제거
+      document.body.classList.remove('intro-active');
+
+      const rect = logoContainer.getBoundingClientRect();
+      const viewportCenterX = window.innerWidth / 2;
+      const viewportCenterY = window.innerHeight / 2;
+      const logoCenterX = rect.left + rect.width / 2;
+      const logoCenterY = rect.top + rect.height / 2;
+
+      const dx = viewportCenterX - logoCenterX;
+      // 사용자 요청으로 정중앙보다 약간 아래쪽(+80px)으로 위치 조정
+      const dy = viewportCenterY - logoCenterY + 80;
+
+      document.documentElement.style.setProperty('--logo-dx', `${dx}px`);
+      document.documentElement.style.setProperty('--logo-dy', `${dy}px`);
+
+      // 애니메이션 준비 상태로 다시 설정 (시작 시 opacity: 0)
+      document.body.classList.add('intro-active');
+
+      // Force layout calculation
+      logoContainer.offsetHeight;
+
+      // 로딩 바 및 퍼센트 애니메이션 실행 (1.2초 동안 100% 도달)
+      const loaderBar = document.querySelector('.loader-bar-fill');
+      const loaderText = document.querySelector('.loader-pct');
+      
+      let progress = 0;
+      const duration = 1200; // 1.2s
+      const intervalTime = 20; // 20ms마다 업데이트
+      const step = 100 / (duration / intervalTime);
+      
+      const interval = setInterval(() => {
+        progress += step;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+        }
+        
+        const displayVal = Math.floor(progress);
+        if (loaderBar) loaderBar.style.width = `${displayVal}%`;
+        if (loaderText) loaderText.innerText = `${displayVal}%`;
+      }, intervalTime);
+
+      // 프레임 렌더링 후 서서히 나타나는 효과 시작 (opacity: 1)
+      setTimeout(() => {
+        document.body.classList.add('intro-started');
+      }, 50);
+
+      // 충분히 로고를 보여준 뒤 원래 위치로 돌리고 폼 요소를 보여줌
+      setTimeout(() => {
+        document.body.classList.remove('intro-active');
+        document.body.classList.remove('intro-started');
+      }, 1500);
+    }
+
+    window.onload = function () {
+      initTheme();
+      initIntroAnimation();
+    };
+
+    // 1. 모달 열기
+    function openPwModal() {
+        document.getElementById('pwModal').style.display = 'flex';
+    }
+
+    // 2. 모달 닫기 및 초기화 (통합 함수)
+    function closePwModal() {
+        document.getElementById('pwModal').style.display = 'none';
+        document.getElementById('findId').value = ''; // 입력값 초기화
+        document.getElementById('pwResult').innerText = ''; // 결과 텍스트 초기화
+        document.getElementById('pwResult').style.display = 'none'; // 박스 숨김
+    }
+
+    // 3. 비밀번호 찾기 (확인 버튼 클릭 시)
+    function findPw() {
+        const id = document.getElementById('findId').value;
+        const pwResult = document.getElementById('pwResult');
+        pwResult.style.display = 'block'; // 박스 표시
+        if(id === "11") {
+            pwResult.innerText = "비밀번호는 '11' 입니다.";
+        } else {
+            pwResult.innerText = "일치하는 아이디가 없습니다.";
+        }
+    }
+
+    // 4. ESC 키 입력 시 닫기
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closePwModal();
+        }
+    });
+
+    // 기존 로그인 함수
+    function login(){
+        const id = document.getElementById('id').value;
+        const pw = document.getElementById('pw').value;
+        const rememberMe = document.querySelector('input[type="checkbox"]').checked;
+        if(id === "11" && pw === "11"){
+            localStorage.setItem("login", "true");
+            document.body.classList.add("page-exit");
+            setTimeout(() => {
+                location.href = "02_admin.html";
+            }, 600);
+        } else {
+            alert("아이디 또는 비밀번호 오류");
+        }
+    }
+</script>
+</body>
+</html>
