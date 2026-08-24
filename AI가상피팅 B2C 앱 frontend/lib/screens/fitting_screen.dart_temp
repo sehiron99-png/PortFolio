@@ -1,0 +1,1328 @@
+import 'dart:io';
+import 'dart:math' as math;
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import '../theme/app_theme.dart';
+import '../providers/fitting_provider.dart';
+import '../widgets/add_photo_popup.dart';
+import '../widgets/clothing_image.dart';
+import '../widgets/notification_icon.dart';
+
+import 'subscription_screen.dart';
+
+class FittingScreen extends StatefulWidget {
+  const FittingScreen({super.key});
+
+  @override
+  State<FittingScreen> createState() => _FittingScreenState();
+}
+
+class _FittingScreenState extends State<FittingScreen>
+    with SingleTickerProviderStateMixin {
+  final ImagePicker _picker = ImagePicker();
+  static const String _defaultModelUrl =
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=600&fit=crop&auto=format';
+
+  bool _isSearchMode = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  String? _pressedCategory;
+  bool _isHistoryPressed = false;
+  bool _isSearchPressed = false;
+  bool _showCategoryArrows = false;
+  final ScrollController _categoryScrollController = ScrollController();
+  Timer? _scrollTimer;
+  bool _continuousScrollingActive = false;
+
+  late AnimationController _shimmerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    _searchController.dispose();
+    _categoryScrollController.dispose();
+    _scrollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startContinuousScroll({required bool directionLeft}) {
+    _scrollTimer?.cancel();
+    _continuousScrollingActive = false;
+    _scrollTimer = Timer(const Duration(milliseconds: 300), () {
+      _continuousScrollingActive = true;
+      _scrollTimer = Timer.periodic(const Duration(milliseconds: 40), (timer) {
+        if (!_categoryScrollController.hasClients) return;
+        final double currentOffset = _categoryScrollController.offset;
+        final double delta = directionLeft ? -10.0 : 10.0;
+        final double targetOffset = (currentOffset + delta).clamp(
+          0.0,
+          _categoryScrollController.position.maxScrollExtent,
+        );
+        _categoryScrollController.jumpTo(targetOffset);
+      });
+    });
+  }
+
+  void _stopContinuousScroll() {
+    _scrollTimer?.cancel();
+    _scrollTimer = null;
+  }
+
+  // 가이드 항목 위젯 (사진 가져오기 다이얼로그용)
+  // 사용자 본인 전신/반신의 사진 촬영/업로드
+  Future<void> _uploadUserPhoto(FittingProvider provider) async {
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const NotificationIcon(),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(
+                    color: Color(0xFFEEEEEE),
+                    thickness: 1,
+                    height: 1), // 헤드라인 밑 선
+                Expanded(
+                  child: Container(
+                    color: AppTheme.background,
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 160),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            color: Colors.white,
+                            width: double.infinity,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 모델 오버레이 피팅 뷰 영역
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 40, right: 40, top: 12),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // 좌측: 전신 사진 영역 (세로 비율)
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (provider.userPhotoPath == null) {
+                                            _uploadUserPhoto(provider);
+                                          } else {
+                                            _showZoomableImageDialog(
+                                              context,
+                                              FileImage(File(
+                                                  provider.userPhotoPath!)),
+                                            );
+                                          }
+                                        },
+                                        child: AnimatedContainer(
+                                          duration:
+                                              const Duration(milliseconds: 300),
+                                          height: 288,
+                                          width: 150,
+                                          decoration: BoxDecoration(
+                                            color:
+                                                provider.userPhotoPath == null
+                                                    ? AppTheme.background
+                                                    : AppTheme.secondary,
+                                            borderRadius:
+                                                BorderRadius.circular(32),
+                                            border: Border.all(
+                                              color: AppTheme.accent,
+                                              width: 2.5,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: provider.userPhotoPath ==
+                                                        null
+                                                    ? AppTheme.accent
+                                                        .withValues(alpha: 0.05)
+                                                    : const Color(0x0A000000),
+                                                blurRadius: 20,
+                                                spreadRadius: 2,
+                                                offset: const Offset(0, 8),
+                                              )
+                                            ],
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(30),
+                                            child: Stack(
+                                              children: [
+                                                // 배경 이미지
+                                                Positioned.fill(
+                                                  child:
+                                                      provider.userPhotoPath !=
+                                                              null
+                                                          ? (kIsWeb 
+                                                              ? Image.network(
+                                                                  provider.userPhotoPath!,
+                                                                  fit: BoxFit.cover,
+                                                                  alignment: Alignment.center,
+                                                                )
+                                                              : Image.file(
+                                                                  File(provider
+                                                                      .userPhotoPath!),
+                                                                  fit: BoxFit.cover,
+                                                                  alignment: Alignment.center,
+                                                                ))
+                                                          : Container(
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                gradient:
+                                                                    LinearGradient(
+                                                                  begin: Alignment
+                                                                      .topCenter,
+                                                                  end: Alignment
+                                                                      .bottomCenter,
+                                                                  colors: [
+                                                                    Colors
+                                                                        .white,
+                                                                    AppTheme
+                                                                        .secondary
+                                                                        .withValues(
+                                                                            alpha:
+                                                                                0.25),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                              child: Center(
+                                                                child: Column(
+                                                                  mainAxisAlignment:
+                                                                      MainAxisAlignment
+                                                                          .center,
+                                                                  children: [
+                                                                    TweenAnimationBuilder(
+                                                                      duration: const Duration(
+                                                                          milliseconds:
+                                                                              1500),
+                                                                      tween: Tween<
+                                                                              double>(
+                                                                          begin:
+                                                                              0,
+                                                                          end:
+                                                                              1),
+                                                                      builder: (context,
+                                                                          double
+                                                                              val,
+                                                                          child) {
+                                                                        return Transform
+                                                                            .translate(
+                                                                          offset: Offset(
+                                                                              0,
+                                                                              math.sin(val * math.pi * 2) * 4),
+                                                                          child:
+                                                                              child,
+                                                                        );
+                                                                      },
+                                                                      child:
+                                                                          Container(
+                                                                        padding: const EdgeInsets
+                                                                            .all(
+                                                                            18),
+                                                                        decoration:
+                                                                            BoxDecoration(
+                                                                          color:
+                                                                              Colors.white,
+                                                                          shape:
+                                                                              BoxShape.circle,
+                                                                          boxShadow: [
+                                                                            BoxShadow(
+                                                                              color: AppTheme.accent.withValues(alpha: 0.15),
+                                                                              blurRadius: 12,
+                                                                              spreadRadius: 2,
+                                                                              offset: const Offset(0, 4),
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                        child:
+                                                                            const Icon(
+                                                                          Icons
+                                                                              .add_a_photo_outlined,
+                                                                          color:
+                                                                              AppTheme.accent,
+                                                                          size:
+                                                                              28,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(
+                                                                        height:
+                                                                            16),
+                                                                    const Text(
+                                                                      '인물 사진 등록',
+                                                                      textAlign:
+                                                                          TextAlign
+                                                                              .center,
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontSize:
+                                                                            14,
+                                                                        fontWeight:
+                                                                            FontWeight.bold,
+                                                                        color: AppTheme
+                                                                            .primary,
+                                                                        letterSpacing:
+                                                                            -0.5,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            ),
+                                                ),
+
+                                                // 사진 변경 버튼 (우측 상단, 글자 없이 아이콘만)
+                                                 if (provider.userPhotoPath !=
+                                                     null)
+                                                   Positioned(
+                                                     top: 12,
+                                                     right: 12,
+                                                     child: GestureDetector(
+                                                       onTap: () =>
+                                                           _uploadUserPhoto(
+                                                               provider),
+                                                       child: Container(
+                                                         padding: const EdgeInsets.all(8),
+                                                         decoration: BoxDecoration(
+                                                           color: Colors.white.withValues(alpha: 0.9),
+                                                           shape: BoxShape.circle,
+                                                           boxShadow: [
+                                                             BoxShadow(
+                                                               color: Colors.black.withValues(alpha: 0.15),
+                                                               blurRadius: 6,
+                                                               spreadRadius: 1,
+                                                               offset: const Offset(0, 2),
+                                                             ),
+                                                           ],
+                                                         ),
+                                                         child: const Icon(
+                                                           Icons.cameraswitch_rounded,
+                                                           color: AppTheme.primary,
+                                                           size: 18,
+                                                         ),
+                                                       ),
+                                                     ),
+                                                   ),
+                                                          
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+
+                                      // 우측: 선택한 옷 리스트
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (provider.outfit.isEmpty)
+                                              Container(
+                                                height: 288,
+                                                width: double.infinity,
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.background,
+                                                  borderRadius:
+                                                      BorderRadius.circular(24),
+                                                  border: Border.all(
+                                                      color: Colors.grey[350]!),
+                                                ),
+                                                child: Center(
+                                                  child: Column(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.checkroom_rounded,
+                                                        color: Colors.grey[400],
+                                                        size: 32,
+                                                      ),
+                                                      const SizedBox(
+                                                          height: 12),
+                                                      const Text(
+                                                        '아래에서 입어볼\n옷을 골라주세요!',
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.grey,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          height: 1.5,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              Container(
+                                                height: 288,
+                                                width: double.infinity,
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.background,
+                                                  borderRadius:
+                                                      BorderRadius.circular(24),
+                                                  border: Border.all(
+                                                      color: Colors.grey[350]!),
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 12),
+                                                child: SingleChildScrollView(
+                                                  physics:
+                                                      const BouncingScrollPhysics(),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children:
+                                                        outfitList.map((entry) {
+                                                      final category =
+                                                          entry.key;
+                                                      final item = entry.value;
+                                                      return Container(
+                                                        margin: const EdgeInsets
+                                                            .only(bottom: 8),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(8),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white,
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(16),
+                                                          border: Border.all(
+                                                              color: Colors
+                                                                  .grey[200]!),
+                                                          boxShadow: const [
+                                                            BoxShadow(
+                                                              color: Color(
+                                                                  0x05000000),
+                                                              blurRadius: 4,
+                                                              offset:
+                                                                  Offset(0, 1),
+                                                            )
+                                                          ],
+                                                        ),
+                                                        child: Row(
+                                                          children: [
+                                                            ClipRRect(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          10),
+                                                              child: SizedBox(
+                                                                width: 40,
+                                                                height: 40,
+                                                                child: ClothingImage(
+                                                                    imageUrl: item
+                                                                        .imageUrl),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                width: 10),
+                                                            Expanded(
+                                                              child: Column(
+                                                                crossAxisAlignment:
+                                                                    CrossAxisAlignment
+                                                                        .start,
+                                                                children: [
+                                                                  Text(
+                                                                    item.name,
+                                                                    style:
+                                                                        const TextStyle(
+                                                                      fontSize:
+                                                                          12,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      color: AppTheme
+                                                                          .primary,
+                                                                    ),
+                                                                    maxLines: 1,
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis,
+                                                                  ),
+                                                                  Text(
+                                                                    category,
+                                                                    style: const TextStyle(
+                                                                        fontSize:
+                                                                            10,
+                                                                        color: Colors
+                                                                            .grey),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+                                                            GestureDetector(
+                                                              onTap: () => provider
+                                                                  .toggleOutfitItem(
+                                                                      item),
+                                                              child:
+                                                                  const Padding(
+                                                                padding:
+                                                                    EdgeInsets
+                                                                        .all(4),
+                                                                child: Icon(
+                                                                    Icons
+                                                                        .close_rounded,
+                                                                    size: 16,
+                                                                    color: Colors
+                                                                        .grey),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+
+                                const SizedBox(height: 8),
+
+                                // 가로 카테고리 탭 리스트 (피팅룸 전용 미니 탭)
+                                Stack(
+                                  children: [
+                                    SizedBox(
+                                      height: 44,
+                                      child: Listener(
+                                        onPointerDown: (_) => setState(() => _showCategoryArrows = true),
+                                        onPointerUp: (_) => setState(() => _showCategoryArrows = false),
+                                        onPointerCancel: (_) => setState(() => _showCategoryArrows = false),
+                                        child: ListView(
+                                          controller: _categoryScrollController,
+                                          scrollDirection: Axis.horizontal,
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(
+                                                parent:
+                                                    BouncingScrollPhysics()),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 40),
+                                        children: [
+                                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: GestureDetector(
+                              onTapDown: (_) => setState(() => _isSearchPressed = true),
+                              onTapCancel: () => setState(() => _isSearchPressed = false),
+                              onTapUp: (_) async {
+                                await Future.delayed(const Duration(milliseconds: 100));
+                                if (mounted) setState(() => _isSearchPressed = false);
+                              },
+                              onTap: () {
+                                setState(() {
+                                  _isSearchMode = !_isSearchMode;
+                                  if (!_isSearchMode) {
+                                    _searchController.clear();
+                                    _searchQuery = '';
+                                  }
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: _isSearchMode
+                                      ? (_isSearchPressed ? const Color(0xFF6B7E64) : AppTheme.fittingAccent)
+                                      : (_isSearchPressed ? Colors.grey[200] : Colors.white),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _isSearchMode
+                                        ? Colors.transparent
+                                        : Colors.grey[200]!,
+                                    width: 1.0,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.search,
+                                  size: 18,
+                                  color: _isSearchMode
+                                      ? Colors.white
+                                      : Colors.grey[700],
+                                ),
+                              ),
+                            ),
+                          ),
+                          ...categories
+                              .map((cat) {
+                            final isSelected = provider.selectedCategory == cat;
+                            final hasItem = provider.outfit.containsKey(cat);
+                            
+                            final isPressed = _pressedCategory == cat;
+
+                            final Color bgColor;
+                            final Color textColor;
+                            final Color borderColor;
+                            final Color checkColor;
+
+                            if (isSelected) {
+                              bgColor = isPressed ? const Color(0xFF6B7E64) : const Color(0xFF8B9D83);
+                              textColor = Colors.white;
+                              borderColor = Colors.transparent;
+                              checkColor = Colors.white;
+                            } else {
+                              bgColor = isPressed ? Colors.grey[200]! : Colors.white;
+                              textColor = hasItem ? AppTheme.fittingAccent : Colors.grey[700]!;
+                              borderColor = hasItem 
+                                  ? AppTheme.fittingAccent.withValues(alpha: 0.4) 
+                                  : Colors.grey[200]!;
+                              checkColor = AppTheme.fittingAccent;
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: GestureDetector(
+                                onTapDown: (_) => setState(() => _pressedCategory = cat),
+                                onTapCancel: () => setState(() => _pressedCategory = null),
+                                onTapUp: (_) async {
+                                  await Future.delayed(const Duration(milliseconds: 100));
+                                  if (mounted) setState(() => _pressedCategory = null);
+                                },
+                                onTap: () => provider.setSelectedCategory(cat),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: bgColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: borderColor,
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                                                    child: Center(
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (hasItem)
+                                          Icon(
+                                            Icons.check,
+                                            size: 14,
+                                            color: checkColor,
+                                          ),
+                                        if (hasItem)
+                                          const SizedBox(width: 4),
+                                        Text(
+                                          cat,
+                                          style: TextStyle(
+                                            color: textColor,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                                         ],
+                                       ),
+                                     ),
+                                     ),
+                                    Positioned(
+                                      left: 0,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: IgnorePointer(
+                                        child: Container(
+                                            width: 40,
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: IgnorePointer(
+                                        child: Container(
+                                            width: 40,
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 10,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: AnimatedOpacity(
+                                        opacity: _showCategoryArrows ? 1.0 : 0.0,
+                                        duration: const Duration(milliseconds: 300),
+                                        curve: Curves.easeInOut,
+                                        child: GestureDetector(
+                                          onTapDown: (_) => _startContinuousScroll(directionLeft: true),
+                                          onTapUp: (_) => _stopContinuousScroll(),
+                                          onTapCancel: () => _stopContinuousScroll(),
+                                          onTap: () {
+                                            if (_continuousScrollingActive) return;
+                                            if (_categoryScrollController.hasClients) {
+                                              _categoryScrollController.animateTo(
+                                                (_categoryScrollController.offset - 100.0).clamp(
+                                                    0.0, _categoryScrollController.position.maxScrollExtent),
+                                                duration: const Duration(milliseconds: 300),
+                                                curve: Curves.easeInOut,
+                                              );
+                                            }
+                                          },
+                                          child: Center(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.9),
+                                                shape: BoxShape.circle,
+                                                boxShadow: const [
+                                                  BoxShadow(
+                                                      color: Colors.black12,
+                                                      blurRadius: 4,
+                                                      offset: Offset(0, 2)),
+                                                ],
+                                              ),
+                                              padding: const EdgeInsets.all(4),
+                                              child: const Icon(Icons.chevron_left,
+                                                  size: 18, color: Colors.black54),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 10,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: AnimatedOpacity(
+                                        opacity: _showCategoryArrows ? 1.0 : 0.0,
+                                        duration: const Duration(milliseconds: 300),
+                                        curve: Curves.easeInOut,
+                                        child: GestureDetector(
+                                          onTapDown: (_) => _startContinuousScroll(directionLeft: false),
+                                          onTapUp: (_) => _stopContinuousScroll(),
+                                          onTapCancel: () => _stopContinuousScroll(),
+                                          onTap: () {
+                                            if (_continuousScrollingActive) return;
+                                            if (_categoryScrollController.hasClients) {
+                                              _categoryScrollController.animateTo(
+                                                (_categoryScrollController.offset + 100.0).clamp(
+                                                    0.0, _categoryScrollController.position.maxScrollExtent),
+                                                duration: const Duration(milliseconds: 300),
+                                                curve: Curves.easeInOut,
+                                              );
+                                            }
+                                          },
+                                          child: Center(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withValues(alpha: 0.9),
+                                                shape: BoxShape.circle,
+                                                boxShadow: const [
+                                                  BoxShadow(
+                                                      color: Colors.black12,
+                                                      blurRadius: 4,
+                                                      offset: Offset(0, 2)),
+                                                ],
+                                              ),
+                                              padding: const EdgeInsets.all(4),
+                                              child: const Icon(Icons.chevron_right,
+                                                  size: 18, color: Colors.black54),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                // 검색바 (직접 추가하기 위에 표시)
+                                if (_isSearchMode)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 40, right: 40, bottom: 12),
+                                    child: SizedBox(
+                                      height: 42,
+                                      child: TextField(
+                                        controller: _searchController,
+                                        style: const TextStyle(fontSize: 14),
+                                        decoration: InputDecoration(
+                                          hintText: '옷 이름 검색...',
+                                          hintStyle: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 14),
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide(
+                                              color: AppTheme.fittingAccent.withValues(alpha: 0.5),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide(
+                                              color: Colors.grey[300]!,
+                                              width: 1,
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: const BorderSide(
+                                              color: AppTheme.fittingAccent,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          contentPadding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 0),
+                                          prefixIcon: const Icon(Icons.search,
+                                              color: Colors.grey, size: 20),
+                                          suffixIcon: IconButton(
+                                            icon: const Icon(Icons.cancel,
+                                                size: 18, color: Colors.grey),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isSearchMode = false;
+                                                _searchController.clear();
+                                                _searchQuery = '';
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        onChanged: (val) {
+                                          setState(() => _searchQuery = val);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                // 직접 추가하기 버튼
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        provider.setShouldOpenGallery(true);
+                                        provider.setScreen('camera');
+                                      },
+                                      icon: const Icon(Icons.add, color: AppTheme.accent, size: 20),
+                                      label: const Text('직접 추가하기',
+                                          style: TextStyle(
+                                              color: AppTheme.accent,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        elevation: 0,
+                                        side: const BorderSide(color: AppTheme.accent, width: 1.5),
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        
+                                                      ),
+                                                      const SizedBox(height: 6),
+                                                      Text(
+                                                        '탭하여 촬영하러 가기',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: AppTheme.accent.withValues(alpha: 0.7),
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 24),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : GridView.builder(
+                                              shrinkWrap: true,
+                                              physics:
+                                                  const NeverScrollableScrollPhysics(),
+                                              padding: EdgeInsets.zero,
+                                              gridDelegate:
+                                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                                crossAxisCount: 3,
+                                                mainAxisSpacing: 12,
+                                                crossAxisSpacing: 12,
+                                                childAspectRatio:
+                                                    0.7, // 세로가로 공간 비율
+                                              ),
+                                              itemCount: categoryClothes.length,
+                                              itemBuilder: (context, index) {
+                                                final item =
+                                                    categoryClothes[index];
+                                                final isSelected = provider
+                                                        .outfit[item.category]
+                                                        ?.id ==
+                                                    item.id;
+
+                                                return GestureDetector(
+                                                  onTap: () => provider
+                                                      .toggleOutfitItem(item),
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              16),
+                                                      border: Border.all(
+                                                        color: isSelected
+                                                            ? AppTheme.accent
+                                                            : Colors
+                                                                .transparent,
+                                                        width: 2,
+                                                      ),
+                                                      boxShadow: const [
+                                                        BoxShadow(
+                                                          color:
+                                                              Color(0x05000000),
+                                                          blurRadius: 4,
+                                                          offset: Offset(0, 1),
+                                                        )
+                                                      ],
+                                                    ),
+                                                    child: ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              14),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Expanded(
+                                                            child: Stack(
+                                                              children: [
+                                                                Positioned.fill(
+                                                                  child: ClothingImage(
+                                                                      imageUrl:
+                                                                          item.imageUrl),
+                                                                ),
+                                                                if (isSelected)
+                                                                  Positioned
+                                                                      .fill(
+                                                                    child:
+                                                                        Container(
+                                                                      color: AppTheme
+                                                                          .accent
+                                                                          .withValues(
+                                                                              alpha: 0.15),
+                                                                      child:
+                                                                          const Center(
+                                                                        child:
+                                                                            CircleAvatar(
+                                                                          backgroundColor:
+                                                                              AppTheme.accent,
+                                                                          radius:
+                                                                              14,
+                                                                          child: Icon(
+                                                                              Icons.check,
+                                                                              color: Colors.white,
+                                                                              size: 14),
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(8),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                  item.name,
+                                                                  style:
+                                                                      const TextStyle(
+                                                                    fontSize:
+                                                                        10,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    color: AppTheme
+                                                                        .primary,
+                                                                  ),
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                                Text(
+                                                                  '${item.price}원',
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize: 9,
+                                                                    color: Colors
+                                                                            .grey[
+                                                                        500],
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // 하단 예상 총액 및 AI 피팅 버튼 바
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.background,
+                  border: Border(
+                      top: BorderSide(color: Colors.grey[300]!, width: 1)),
+                ),
+                padding: const EdgeInsets.only(
+                    top: 16, bottom: 12, left: 40, right: 40),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondary,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${totalPrice.toString().replaceAllMapped(RegExp(r"(\d{1,3})(?=(\d{3})+(?!\d))"), (Match m) => "${m[1]},")}원',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 5,
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF8E9B61), // 따뜻한 황록색 (노란빛이 도는 올리브 그린)
+                              Color(0xFF5A6B45), // 브랜드 올리브 카키
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Stack(
+                            children: [
+                              // 1. 왼쪽에서 오른쪽으로 슥 지나가는 대각선 광택 하이라이트 (Soft Diagonal Shimmer)
+                              Positioned.fill(
+                                child: AnimatedBuilder(
+                                  animation: _shimmerController,
+                                  builder: (context, child) {
+                                    final value = _shimmerController.value;
+                                    // begin과 end를 넓은 사선 방향으로 배치하여 대각선 느낌을 확실히 살리고, 수평으로 이동시킵니다.
+                                    final beginX = -2.5 + (value * 5.0);
+                                    final endX = -1.0 + (value * 5.0);
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color(0xFFFFF7C2).withValues(alpha: 0.0),
+                                            const Color(0xFFFFF7C2).withValues(alpha: 0.05),
+                                            const Color(0xFFFFF7C2).withValues(alpha: 0.16), // 따뜻하게 퍼지는 노란 광택선
+                                            const Color(0xFFFFF7C2).withValues(alpha: 0.05),
+                                            const Color(0xFFFFF7C2).withValues(alpha: 0.0),
+                                          ],
+                                          // 경계가 딱딱 끊어지지 않고 안개처럼 은은하게 블러처리되도록 stops를 넓게 분산
+                                          stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+                                          begin: Alignment(beginX, -1.2),
+                                          end: Alignment(endX, 1.2),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              // 2. 상단 하프 글래스 효과 (유리 재질 반사)
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                height: 28,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0.22),
+                                        Colors.white.withValues(alpha: 0.03),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // 4. 실제 버튼 및 인터랙션 레이어
+                              Positioned.fill(
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(20),
+                                    onTap: () => _handleStartFitting(provider),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.flash_on,
+                                            size: 18, color: Colors.white),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          provider.outfit.isNotEmpty
+                                              ? 'AI 피팅 시작 (${provider.outfit.length})'
+                                              : 'AI 피팅 시작',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGuideDialog(BuildContext context, FittingProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          
+                                      ),
+                                      child: Container(
+                                        width: 80,
+                                        height: double.infinity,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: Colors.grey[300]!),
+                                          image: DecorationImage(
+                                            image: AssetImage(item['image']!),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: -6,
+                                      left: -6,
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          isWarning
+                                              ? Icons.cancel
+                                              : Icons.check_circle,
+                                          color: isWarning
+                                              ? Colors.redAccent
+                                              : Colors.green,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                item['desc']!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.3,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (index != items.length - 1)
+                          const SizedBox(width: 12),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showZoomableImageDialog(
+      BuildContext context, ImageProvider imageProvider) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      pageBuilder: (context, anim1, anim2) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  clipBehavior: Clip.none,
+                  child: Image(
+                    image: imageProvider,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 40,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.pinch_rounded,
+                            color: Colors.white, size: 16),
+                        SizedBox(width: 6),
+                        Text(
+                          '핀치 제스처로 확대/축소할 수 있습니다',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
