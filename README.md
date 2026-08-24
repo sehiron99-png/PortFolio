@@ -17,13 +17,13 @@ flutter_clothing_app (앱에서 직접 테스트 해본 추천 시스템)
 
 ## 양봉장 꿀벌 폐사율 감소를 위한 위험 요인 감지 시스템 (AI)
 
-모델 가중치
+(모델 가중치)
 
 honeybee_model.onnx
 
 optimized_bee_model_no_val.pth
 
-사용한 AI 모델
+(사용한 AI 모델)
 
 train_Efficient-v2.ipynb
 
@@ -33,6 +33,6 @@ train__opencv.ipynb
 
 train_micro.ipynb
 
-데이터 전처리
+(데이터 전처리)
 
-꿀벌 질병 데이터.txt
+* 꿀벌 질병 데이터.txt
