@@ -30,4 +30,4 @@
 
 ## 양봉장 꿀벌 폐사율 감소를 위한 위험 요인 감지 시스템 (AI)
 
-[위험 감지 시스템](./clothing_recommender)
+[위험 감지 시스템](./train_micro.ipynb)
