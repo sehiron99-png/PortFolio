@@ -19,6 +19,7 @@
 # -- AI
 ## 의류 추천 시스템 (AI)
 clothing_recommender (색상, 유사도에 따른 추천)
+flutter_clothing_app (앱에서 직접 테스트 해본 추천 시스템)
 
 ## 양봉장 꿀벌 폐사율 감소를 위한 위험 요인 감지 시스템 (AI)
 
