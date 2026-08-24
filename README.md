@@ -8,6 +8,8 @@
 * 03_chat.html
 
 ## B2C AI 가상 피팅 앱 서비스
+[AI가상피팅 B2C 앱 frontend](./AI가상피팅 B2C 앱 frontend/)
+
 
 #
 # -------- AI --------
