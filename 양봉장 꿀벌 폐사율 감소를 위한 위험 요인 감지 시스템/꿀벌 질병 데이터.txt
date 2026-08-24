@@ -1,0 +1,116 @@
+[데이터 개수]
+labels // train
+-- 백묵병 9450 // 9450
+-- 알 20035 // 20035
+-- 유충 응애 92636 // 92636
+-- 유충 정상 28196 // 28196
+
+
+labels, train, val_labels, val_train
+
+
+import shutil
+from pathlib import Path
+
+
+# =========================
+# 1. 원본 데이터 경로 설정
+# =========================
+TRAIN_SRC = Path(r"C:\Test\aihub_download\106.지능형_양봉_데이터\01-1.정식개방데이터\Training\01.원천데이터")
+VALID_SRC = Path(r"C:\Test\aihub_download\106.지능형_양봉_데이터\01-1.정식개방데이터\Validation\01.원천데이터")
+
+# 최종 학습용 데이터 폴더
+OUT_DIR = Path(r"C:\Test\cnn_models\bee_dataset")
+
+
+# =========================
+# 2. 사용할 이미지 확장자
+# =========================
+IMAGE_EXTS = [".jpg", ".jpeg", ".png", ".bmp"]
+
+
+# =========================
+# 3. 폴더명에서 클래스 이름 뽑기
+# =========================
+def get_class_name(folder_name):
+    """
+    예:
+    TS_01.실제데이터_01.Bounding_Box_04.수일벌-이탈리안_unzip
+    → 수일벌-이탈리안
+    """
+
+    name = folder_name
+
+    # _unzip 제거
+    if name.endswith("_unzip"):
+        name = name.replace("_unzip", "")
+
+    # 마지막 '_' 뒤쪽만 사용
+    # 예: TS_01.실제데이터_01.Bounding_Box_04.수일벌-이탈리안
+    # → 04.수일벌-이탈리안
+    last_part = name.split("_")[-1]
+
+    # 번호 제거
+    # 예: 04.수일벌-이탈리안 → 수일벌-이탈리안
+    if "." in last_part:
+        class_name = last_part.split(".", 1)[1]
+    else:
+        class_name = last_part
+
+    return class_name
+
+
+# =========================
+# 4. 이미지 복사 함수
+# =========================
+def copy_images(src_root, split_name):
+    out_split_dir = OUT_DIR / split_name
+    out_split_dir.mkdir(parents=True, exist_ok=True)
+
+    total_count = 0
+
+    for folder in src_root.iterdir():
+        if not folder.is_dir():
+            continue
+
+        class_name = get_class_name(folder.name)
+
+        # 필요 없는 클래스가 있으면 여기서 제외 가능
+        # 예: 알, 애벌레, 번데기 제외하고 싶으면 아래 if 사용
+        # if class_name in ["알", "애벌레", "번데기"]:
+        #     continue
+
+        class_out_dir = out_split_dir / class_name
+        class_out_dir.mkdir(parents=True, exist_ok=True)
+
+        image_files = []
+        for ext in IMAGE_EXTS:
+            image_files.extend(folder.rglob(f"*{ext}"))
+            image_files.extend(folder.rglob(f"*{ext.upper()}"))
+
+        print(f"[{split_name}] {folder.name} → {class_name}, 이미지 {len(image_files)}개")
+
+        for img_path in image_files:
+            # 파일명이 겹칠 수 있으므로 원본 폴더명을 앞에 붙임
+            new_name = f"{folder.name}_{img_path.name}"
+            dst_path = class_out_dir / new_name
+
+            if not dst_path.exists():
+                shutil.copy2(img_path, dst_path)
+                total_count += 1
+
+    print(f"\n[{split_name}] 복사 완료: {total_count}개")
+
+
+# =========================
+# 5. 실행
+# =========================
+if __name__ == "__main__":
+    print("학습 데이터 정리 시작")
+    copy_images(TRAIN_SRC, "train")
+
+    print("\n검증 데이터 정리 시작")
+    copy_images(VALID_SRC, "valid")
+
+    print("\n전체 완료")
+    print("생성된 폴더:", OUT_DIR)
