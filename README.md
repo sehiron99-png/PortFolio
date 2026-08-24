@@ -20,8 +20,8 @@
 ## 양봉장 꿀벌 폐사율 감소를 위한 위험 요인 감지 시스템 (AI)
 
 (모델 가중치)
-* honeybee_model.onnx
-* optimized_bee_model_no_val.pth
+- [honeybee_model.onnx](./honeybee_model.onnx)
+- [optimized_bee_model_no_val.pth](./optimized_bee_model_no_val.pth)
 
 (사용한 AI 모델)
 * train_Efficient-v2.ipynb
