@@ -12,6 +12,7 @@
 #
 # -------- AI --------
 ## 의류 추천 시스템 (AI)
+(색상, 유사도에 따른 추천)
 * [clothing_recommender](./clothing_recommender/)
 
 (앱에서 직접 테스트 해본 추천 시스템)
