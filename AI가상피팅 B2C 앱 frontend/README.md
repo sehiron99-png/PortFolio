@@ -1,5 +1,5 @@
-assets
+`assets`
 * 이미지
   
-lib
+`lib`
 * 라이브러리
