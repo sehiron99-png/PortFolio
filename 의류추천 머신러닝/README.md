@@ -1,3 +1,5 @@
+# 의류추천 머신러닝 (추천 유사도 확인)
+
 `clip_zero_shot_test.py/` : OpenAI의 CLIP 모델을 활용해 별도의 추가 학습 없이 텍스트-이미지 간 유사도 기반의 Zero-shot 의류 분류 및 추천 성능을 테스트하는 모듈
 
 `evaluate_compare.py/` : ResNet, CLIP 등 서로 다른 모델/알고리즘 간 성능 비교 평가 데이터를 출력
